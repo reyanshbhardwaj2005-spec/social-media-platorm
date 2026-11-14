@@ -11,7 +11,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -26,14 +28,13 @@ public class UserProfileController {
         this.profileService = profileService;
     }
 
-    @PostMapping("/profile")
-    public ResponseEntity<ProfileResponse> createProfile(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ProfileRequest request) {
+    @PostMapping(value = "/profile", consumes = "multipart/form-data")
+    public ResponseEntity<ProfileResponse> createProfile(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @ModelAttribute ProfileRequest request,
+            @RequestParam(value = "profileImage", required = false) MultipartFile profileImage) throws IOException {
 
-        UUID userId = authenticatedUserId(jwt);
-        String username = authenticatedUsername(jwt);
-
-        ProfileResponse response = profileService.createProfile(userId, username, request);
-
+        ProfileResponse response = profileService.createProfile(authenticatedUserId(jwt), authenticatedUsername(jwt), request, profileImage, jwt.getTokenValue());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -42,9 +43,13 @@ public class UserProfileController {
         return ResponseEntity.ok(profileService.getMyProfile(authenticatedUserId(jwt)));
     }
 
-    @PutMapping("/me")
-    public ResponseEntity<ProfileResponse> updateMyProfile(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ProfileRequest request) {
-        return ResponseEntity.ok(profileService.updateMyProfile(authenticatedUserId(jwt), request));
+    @PutMapping(value = "/me", consumes = "multipart/form-data")
+    public ResponseEntity<ProfileResponse> updateMyProfile(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @ModelAttribute ProfileRequest request,
+            @RequestParam(value = "profileImage", required = false) MultipartFile profileImage) throws IOException {
+
+        return ResponseEntity.ok(profileService.updateMyProfile(authenticatedUserId(jwt), request, profileImage, jwt.getTokenValue()));
     }
 
     @GetMapping("/{userId}")

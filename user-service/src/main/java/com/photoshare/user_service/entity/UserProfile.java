@@ -44,6 +44,10 @@ public class UserProfile {
     @Column(length = 500)
     private String bio;
 
+    // Logical reference to the media record owned by Media Service.
+    @Column(name = "profile_picture_media_id")
+    private UUID profilePictureMediaId;
+
     @Column(name = "profile_picture_url", length = 1000)
     private String profilePictureUrl;
 

@@ -18,8 +18,8 @@ public class ProfileRequest {
     @Size(max = 500, message = "Bio must not exceed 500 characters")
     private String bio;
 
-    @Size(max = 1000, message = "Profile picture URL must not exceed 1000 characters")
-    private String profilePictureUrl;
+//    @Size(max = 1000, message = "Profile picture URL must not exceed 1000 characters")
+//    private String profilePictureUrl;
 
     @Size(max = 500, message = "Website must not exceed 500 characters")
     private String website;

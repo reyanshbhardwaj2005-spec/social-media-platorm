@@ -1,19 +1,21 @@
 package com.photoshare.user_service.service;
 
+import com.photoshare.user_service.client.MediaServiceClient;
 import com.photoshare.user_service.dto.request.ProfileRequest;
+import com.photoshare.user_service.dto.response.MediaUploadResponse;
 import com.photoshare.user_service.dto.response.ProfileResponse;
 import com.photoshare.user_service.dto.response.ProfileSummaryResponse;
 import com.photoshare.user_service.entity.UserProfile;
 import com.photoshare.user_service.repository.UserProfileRepository;
-import com.sun.jdi.request.DuplicateRequestException;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,29 +23,33 @@ import java.util.UUID;
 public class UserProfileService {
 
     private final UserProfileRepository profileRepository;
+    private final MediaServiceClient mediaServiceClient;
 
-    public UserProfileService(UserProfileRepository profileRepository) {
+    public UserProfileService(UserProfileRepository profileRepository, MediaServiceClient mediaServiceClient) {
         this.profileRepository = profileRepository;
+        this.mediaServiceClient = mediaServiceClient;
     }
 
-    public ProfileResponse createProfile(UUID userId, String username, ProfileRequest request) {
+    public ProfileResponse createProfile(UUID userId, String username, ProfileRequest request,
+                                         MultipartFile profileImage, String accessToken) throws IOException {
 
         if (profileRepository.existsByUserId(userId)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "User already exists with this userId.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Profile already exists for this user.");
         }
-
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("Username is required.");
         }
 
         UserProfile profile = new UserProfile();
-
         profile.setUserId(userId);
         profile.setUsername(username.trim());
-
         applyRequest(profile, request, true);
-        UserProfile savedProfile = profileRepository.save(profile);
 
+        if (profileImage != null && !profileImage.isEmpty()) {
+            attachProfilePicture(profile, profileImage, accessToken);
+        }
+
+        UserProfile savedProfile = profileRepository.save(profile);
         return toProfileResponse(savedProfile, userId);
     }
 
@@ -53,16 +59,17 @@ public class UserProfileService {
         return toProfileResponse(profile, uuid);
     }
 
-    public @Nullable ProfileResponse updateMyProfile(UUID uuid, @Valid ProfileRequest request) {
+    public ProfileResponse updateMyProfile(UUID userId, ProfileRequest request,
+                                           MultipartFile profileImage, String accessToken) throws IOException {
+        UserProfile profile = getRequiredProfile(userId);
+        applyRequest(profile, request, false);
 
-        if(!profileRepository.existsByUserId(uuid)) {
-            throw new DuplicateRequestException("You can't update this user as it does not exist.");
+        // If no new image is supplied, retain the existing profile picture.
+        if (profileImage != null && !profileImage.isEmpty()) {
+            attachProfilePicture(profile, profileImage, accessToken);
         }
 
-        UserProfile profile = profileRepository.findByUserId(uuid);
-        applyRequest(profile, request, true);
-        return toProfileResponse(profileRepository.save(profile), uuid);
-
+        return toProfileResponse(profileRepository.save(profile), userId);
     }
 
     public @Nullable ProfileResponse getProfile(UUID userId, UUID uuid) {
@@ -91,11 +98,28 @@ public class UserProfileService {
         return toProfileResponse(profile, uuid);
     }
 
+    private void attachProfilePicture(UserProfile profile, MultipartFile image,
+                                      String accessToken) throws IOException {
+        MediaUploadResponse uploaded = mediaServiceClient.uploadProfilePicture(
+                image.getBytes(), image.getOriginalFilename(), image.getContentType(), accessToken
+        );
+        profile.setProfilePictureMediaId(uploaded.getMediaId());
+        profile.setProfilePictureUrl(uploaded.getImageUrl());
+    }
+
+    private UserProfile getRequiredProfile(UUID userId) {
+        UserProfile profile = profileRepository.findByUserId(userId);
+        if (profile == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User profile not found.");
+        }
+        return profile;
+    }
+
     private void applyRequest(UserProfile profile, ProfileRequest request, boolean creating) {
 
         profile.setFullName(request.getFullName().trim());
         profile.setBio(blankToNull(request.getBio()));
-        profile.setProfilePictureUrl(blankToNull(request.getProfilePictureUrl()));
+//        profile.setProfilePictureUrl(blankToNull(request.getProfilePictureUrl()));
         profile.setWebsite(blankToNull(request.getWebsite()));
 
         if (request.getPrivateAccount() != null) {
@@ -121,6 +145,7 @@ public class UserProfileService {
         response.setUsername(profile.getUsername());
         response.setFullName(profile.getFullName());
         response.setProfilePictureUrl(profile.getProfilePictureUrl());
+        response.setProfilePictureMediaId(profile.getProfilePictureMediaId());
         response.setPrivateAccount(profile.isPrivateAccount());
         response.setCreatedAt(profile.getCreatedAt());
         response.setUpdatedAt(profile.getUpdatedAt());

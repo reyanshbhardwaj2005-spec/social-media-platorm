@@ -13,6 +13,7 @@ public class ProfileResponse {
     private String username;
     private String fullName;
     private String bio;
+    private UUID profilePictureMediaId;
     private String profilePictureUrl;
     private String website;
     private boolean privateAccount;
