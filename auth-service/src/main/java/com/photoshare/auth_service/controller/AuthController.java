@@ -6,11 +6,10 @@ import com.photoshare.auth_service.dto.request.SignupRequest;
 import com.photoshare.auth_service.dto.response.AuthResponse;
 import com.photoshare.auth_service.services.AuthService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 
@@ -40,8 +39,14 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(@Valid @RequestBody RefreshRequest request) {
-        authService.logout(request.refreshToken);
+    public ResponseEntity<?> logout(@Valid @RequestBody RefreshRequest request, @RequestHeader(value = "Authorization", required = false) String authorization) {
+
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Access token is required");
+        }
+
+        String accessToken = authorization.substring(7);
+        authService.logout(request.refreshToken, accessToken);
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
 }

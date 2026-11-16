@@ -21,6 +21,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+
 @Service
 public class AuthService {
 
@@ -29,13 +31,15 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwt;
     private final RefreshTokenService refreshTokens;
+    private final TokenRevocationService tokenRevocationService;
 
-    public AuthService(UserRepository users, PasswordEncoder encoder, AuthenticationManager authenticationManager, JwtService jwt, RefreshTokenService refreshTokens) {
+    public AuthService(UserRepository users, PasswordEncoder encoder, AuthenticationManager authenticationManager, JwtService jwt, RefreshTokenService refreshTokens, TokenRevocationService tokenRevocationService) {
         this.users = users;
         this.encoder = encoder;
         this.authenticationManager = authenticationManager;
         this.jwt = jwt;
         this.refreshTokens = refreshTokens;
+        this.tokenRevocationService = tokenRevocationService;
     }
 
     @Transactional
@@ -82,8 +86,16 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(String rawToken) {
-        refreshTokens.revoke(rawToken);
+    public void logout(String rawRefreshToken, String accessToken) {
+
+        // Revoke refresh token
+        refreshTokens.revoke(rawRefreshToken);
+
+        // Revoke access token
+        String jti = jwt.extractTokenId(accessToken);
+        Instant expiration = jwt.extractExpiration(accessToken);
+
+        tokenRevocationService.revoke(jti, expiration);
     }
 
     @Transactional

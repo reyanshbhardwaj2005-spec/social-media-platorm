@@ -32,6 +32,7 @@ public class JwtService {
     public String generateAccessToken(User user) {
         Instant now = Instant.now();
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .subject(user.getId().toString())
                 .claim("email", user.getEmail())
                 .claim("username", user.getUsername())
@@ -41,6 +42,25 @@ public class JwtService {
                 .expiration(Date.from(now.plusMillis(accessExpirationMs)))
                 .signWith(key, Jwts.SIG.HS256)
                 .compact();
+    }
+
+    public String extractTokenId(String token) {
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getId();
+    }
+
+    public Instant extractExpiration(String token) {
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getExpiration()
+                .toInstant();
     }
 
     public UUID extractUserId(String token) {

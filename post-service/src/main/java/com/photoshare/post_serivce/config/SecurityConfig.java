@@ -1,5 +1,6 @@
 package com.photoshare.post_serivce.config;
 
+import com.photoshare.post_serivce.service.TokenRevocationService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,10 +25,12 @@ import java.util.Base64;
 @Configuration
 public class SecurityConfig {
 
+
     @Bean
     public JwtDecoder jwtDecoder(
             @Value("${security.jwt.secret}") String secret,
-            @Value("${security.jwt.secret-base64:false}") boolean base64Encoded) {
+            @Value("${security.jwt.secret-base64:false}") boolean base64Encoded,
+            TokenRevocationService tokenRevocationService) {
 
         byte[] keyBytes = base64Encoded
                 ? Base64.getDecoder().decode(secret)
@@ -44,16 +47,20 @@ public class SecurityConfig {
                 .build();
 
         OAuth2TokenValidator<Jwt> accessTokenValidator = jwt -> {
-            if ("access".equals(jwt.getClaimAsString("type"))) {
-                return OAuth2TokenValidatorResult.success();
+
+            if (!"access".equals(jwt.getClaimAsString("type"))) {
+                return OAuth2TokenValidatorResult.failure(
+                        new OAuth2Error("invalid_token", "Only access tokens are accepted by post-service.", null));
             }
 
-            OAuth2Error error = new OAuth2Error(
-                    "invalid_token",
-                    "Only access tokens are accepted by post-service.",
-                    null
-            );
-            return OAuth2TokenValidatorResult.failure(error);
+            String tokenId = jwt.getId();
+
+            if (tokenRevocationService.isRevoked(tokenId)) {
+                return OAuth2TokenValidatorResult.failure(
+                        new OAuth2Error("invalid_token", "This access token has been revoked.", null));
+            }
+
+            return OAuth2TokenValidatorResult.success();
         };
 
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
@@ -63,6 +70,7 @@ public class SecurityConfig {
 
         return decoder;
     }
+
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {

@@ -1,5 +1,6 @@
 package com.photoshare.user_service.config;
 
+import com.photoshare.user_service.service.TokenRevocationService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,7 +41,8 @@ public class SecurityConfig {
     @Bean
     public JwtDecoder jwtDecoder(
             @Value("${security.jwt.secret}") String configuredSecret,
-            @Value("${security.jwt.secret-base64:false}") boolean base64Encoded) {
+            @Value("${security.jwt.secret-base64:false}") boolean base64Encoded,
+            TokenRevocationService revocationService) {
 
         byte[] keyBytes = base64Encoded
                 ? Base64.getDecoder().decode(configuredSecret)
@@ -57,15 +59,18 @@ public class SecurityConfig {
                 .build();
 
         OAuth2TokenValidator<Jwt> accessTokenValidator = jwt -> {
-            if ("access".equals(jwt.getClaimAsString("type"))) {
-                return OAuth2TokenValidatorResult.success();
+
+            if (!"access".equals(jwt.getClaimAsString("type"))) {
+                return OAuth2TokenValidatorResult.failure(
+                        new OAuth2Error("invalid_token", "Only access tokens are accepted.", null));
             }
-            OAuth2Error error = new OAuth2Error(
-                    "invalid_token",
-                    "Only access tokens are accepted by user-service.",
-                    null
-            );
-            return OAuth2TokenValidatorResult.failure(error);
+
+            if (revocationService.isRevoked(jwt.getId())) {
+                return OAuth2TokenValidatorResult.failure(
+                        new OAuth2Error("invalid_token", "This access token has been revoked.", null));
+            }
+
+            return OAuth2TokenValidatorResult.success();
         };
 
         decoder.setJwtValidator(
