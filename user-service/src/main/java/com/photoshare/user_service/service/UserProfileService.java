@@ -7,6 +7,7 @@ import com.photoshare.user_service.dto.response.ProfileResponse;
 import com.photoshare.user_service.dto.response.ProfileSummaryResponse;
 import com.photoshare.user_service.entity.UserProfile;
 import com.photoshare.user_service.repository.UserProfileRepository;
+import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.PageRequest;
@@ -92,10 +93,15 @@ public class UserProfileService {
                 .toList();
     }
 
-    public @Nullable ProfileResponse updatePrivacy(UUID uuid, @NotNull(message = "privateAccount is required") Boolean privateAccount) {
-        UserProfile profile = new UserProfile();
+    @Transactional
+    public ProfileResponse updatePrivacy(UUID userId, Boolean privateAccount) {
+
+        UserProfile profile = profileRepository.findByUserId(userId);
+
         profile.setPrivateAccount(privateAccount);
-        return toProfileResponse(profile, uuid);
+        UserProfile updatedProfile = profileRepository.save(profile);
+
+        return toProfileResponse(updatedProfile, userId);
     }
 
     private void attachProfilePicture(UserProfile profile, MultipartFile image,
@@ -170,5 +176,9 @@ public class UserProfileService {
         response.setPrivateAccount(profile.isPrivateAccount());
 
         return response;
+    }
+
+    public boolean existsByUserId(UUID userId) {
+        return profileRepository.existsByUserId(userId);
     }
 }

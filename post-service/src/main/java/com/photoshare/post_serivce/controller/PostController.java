@@ -75,6 +75,15 @@ public class PostController {
         return ResponseEntity.noContent().build();
     }
 
+    //this is a special endpoint that has been made for LikeService for that boolean error
+    @GetMapping("/{postId}/exists")
+    public ResponseEntity<Boolean> postExists(@PathVariable UUID postId) {
+
+        boolean exists = postService.existsById(postId);
+
+        return ResponseEntity.ok(exists);
+    }
+
 
     private UUID authenticatedUserId(Jwt jwt) {
         try {

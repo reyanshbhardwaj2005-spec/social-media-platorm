@@ -144,4 +144,8 @@ public class PostService {
         response.setUpdatedAt(post.getUpdatedAt());
         return response;
     }
+
+    public boolean existsById(UUID postId) {
+        return postRepository.existsById(postId);
+    }
 }
