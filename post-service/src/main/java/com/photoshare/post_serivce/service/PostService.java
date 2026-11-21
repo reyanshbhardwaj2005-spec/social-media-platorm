@@ -20,6 +20,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -148,4 +149,22 @@ public class PostService {
     public boolean existsById(UUID postId) {
         return postRepository.existsById(postId);
     }
+
+
+    public PostPageResponse getFeed(List<UUID> userIds, int page, int size) {
+
+        if (userIds == null || userIds.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one user ID is required.");
+        }
+
+        if (page < 0 || size < 1 || size > 50) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid pagination values.");
+        }
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Post> posts = postRepository.findAllByUserIdInOrderByCreatedAtDesc(userIds, pageable);
+
+        return toPageResponse(posts);
+    }
+
 }

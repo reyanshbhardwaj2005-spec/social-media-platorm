@@ -21,10 +21,12 @@ public class FeedController {
         this.service = service;
     }
 
-    @GetMapping("/feed")
-    public Map<String,Object> feed(@AuthenticationPrincipal Jwt jwt,
-                                   @RequestParam(defaultValue="0") int page,
-                                   @RequestParam(defaultValue="20") int size) {
-        return service.getFeed(UUID.fromString(jwt.getSubject()),page,size);
+    @GetMapping
+    public Map<String,Object> feed(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue="0") int page,
+            @RequestParam(defaultValue="20") int size) {
+
+        return service.getFeed(UUID.fromString(jwt.getSubject()), page, size, jwt.getTokenValue());
     }
 }

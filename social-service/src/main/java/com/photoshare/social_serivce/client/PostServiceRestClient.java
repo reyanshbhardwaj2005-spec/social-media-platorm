@@ -5,6 +5,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.http.HttpHeaders;
 
 import java.util.List;
 import java.util.Map;
@@ -38,10 +39,16 @@ public class PostServiceRestClient {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public Map<String,Object> getFeed(List<UUID> userIds, int page, int size){
-        return client.get().uri(uri -> uri.path(feedPath)
-                        .queryParam("userIds",userIds).queryParam("page",page).queryParam("size",size).build())
-                .retrieve().body(new ParameterizedTypeReference<Map<String,Object>>() {});
+    public Map<String,Object> getFeed(List<UUID> userIds, int page, int size, String accessToken) {
+
+        return client.get()
+                .uri(uri -> uri.path(feedPath)
+                        .queryParam("userIds", userIds)
+                        .queryParam("page", page)
+                        .queryParam("size", size)
+                        .build())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                .retrieve()
+                .body(new ParameterizedTypeReference<Map<String,Object>>() {});
     }
 }

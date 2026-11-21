@@ -23,7 +23,7 @@ public class FeedService {
         this.postServiceClient = postServiceClient;
     }
 
-    public Map<String, Object> getFeed(UUID uuid, int page, int size) {
+    public Map<String, Object> getFeed(UUID uuid, int page, int size, String accessToken) {
 
         if(page<0||size<1||size>100) {
             throw new IllegalArgumentException("Invalid pagination values.");
@@ -38,6 +38,6 @@ public class FeedService {
             return Map.of("posts",List.of(),"page",page,"size",size,"totalElements",0,"totalPages",0,"last",true);
         }
 
-        return postServiceClient.getFeed(following,page,size);
+        return postServiceClient.getFeed(following, page, size, accessToken);
     }
 }
